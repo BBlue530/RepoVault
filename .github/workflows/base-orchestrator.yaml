@@ -1,0 +1,43 @@
+name: Base Orchestrator Pipeline
+
+on:
+  push:
+
+jobs:
+
+  check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      lambda_function_changed: ${{ steps.check_lambda.outputs.lambda_function_changed }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Check backup lambda function changed
+        id: check_lambda
+        run: |
+          CHANGED=$(git diff --name-only HEAD^ HEAD | grep '^src' || true)
+          if [ -z "$CHANGED" ]; then
+            echo "[+] Lambda not changed"
+            echo "lambda_function_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "[+] Lambda changed"
+            echo "lambda_function_changed=true" >> $GITHUB_OUTPUT
+          fi
+
+  deploy-lambda:
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.lambda_function_changed == 'true' }}
+    uses: ./.github/workflows/deploy-lambda-function.yaml
+    secrets:
+      ACCESS_KEY: ${{ secrets.ACCESS_KEY }}
+      SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS_KEY }}
+
+  backup-repo:
+    if: always()
+    uses: ./.github/workflows/backup-repo.yaml
+    secrets:
+      API_KEY: ${{ secrets.API_KEY }}
+      REPO_URL: ${{ secrets.REPO_URL }}
+      BACKUP_LAMBDA_FUNCTION_URL: ${{ secrets.BACKUP_LAMBDA_FUNCTION_URL }}

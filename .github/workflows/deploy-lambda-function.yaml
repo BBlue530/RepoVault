@@ -1,0 +1,36 @@
+name: Deploy Lambda Function
+
+on:
+  workflow_call:
+    secrets:
+      ACCESS_KEY:
+        required: true
+      SECRET_ACCESS_KEY:
+        required: true
+
+jobs:
+  deploy-lambda:
+    runs-on: ubuntu-latest
+    env:
+      ACCESS_KEY: ${{ secrets.ACCESS_KEY }}
+      SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS_KEY }}
+
+    steps:
+
+      - uses: actions/checkout@v3
+
+      - uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.SECRET_ACCESS_KEY }}
+          aws-region: eu-north-1
+
+      - name: Build lambda zip
+        working-directory: ${{ github.workspace }}/src
+        run: |
+          zip -r ../lambda.zip .
+      
+      - name: Deploy lambda
+        working-directory: ${{ github.workspace }}
+        run: |
+          aws lambda update-function-code --function-name backup_repo_lambda --zip-file fileb://lambda.zip
