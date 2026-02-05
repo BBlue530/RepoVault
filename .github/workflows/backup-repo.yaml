@@ -25,10 +25,19 @@ jobs:
       - name: Backup Repo
         working-directory: ${{ github.workspace }}
         run: |
-          response_and_status=$(curl --connect-timeout 60 --max-time 300 \
+          response_and_status=$(curl --connect-timeout 60 --max-time 300 -s -w "\n%{http_code}" \
             -H "Content-Type: application/json" \
             -d '{
               "api_key": "'"$API_KEY"'",
               "repo_url": "'"$REPO_URL"'"
             }' \
             "$BACKUP_LAMBDA_FUNCTION_URL")
+
+          http_status=$(echo "$response_and_status" | tail -n1)
+          response_body=$(echo "$response_and_status" | sed '$d')
+
+          if [[ "$http_status" -lt 200 || "$http_status" -ge 300 ]]; then
+            echo "[!] Backup failed!"
+            echo "${response_body}"
+            exit 1
+          fi

@@ -19,7 +19,10 @@ def lambda_backup_repository(event, context):
     API_KEY = read_secret_from_secret_manager(api_key_secret_name, secret_name)
 
     if received_api_key != API_KEY:
-        return {"status": "api key mismatch"}
+        return {
+            "statusCode": 400,
+            "body": "api key mismatch"
+            }
     
     pat = read_secret_from_secret_manager(github_pat_secret_name, secret_name)
     
@@ -46,7 +49,10 @@ def lambda_backup_repository(event, context):
     backup_repos_s3_bucket(timestamp, backup_path, repo_name)
     cleanup_old_s3_backups(timestamp, repo_name)
 
-    return {"status": "backup succeeded"}
+    return {
+            "statusCode": 200,
+            "body": "backup succeeded"
+            }
 
 def read_secret_from_secret_manager(secret_key_name, secret_name):
     client = boto3.client("secretsmanager")
