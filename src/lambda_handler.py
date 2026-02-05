@@ -2,53 +2,83 @@ import os
 import subprocess
 import datetime
 import json
+import traceback
 from urllib.parse import unquote
 from s3_handling import backup_repos_s3_bucket, cleanup_old_s3_backups
 from secret_manager import read_secret_from_secret_manager
 from variables import *
 
 def lambda_backup_repository(event, context):
-    body = event.get("body")
-    if body:
-        event = json.loads(body)
+    try:
+        body = event.get("body")
+        if body:
+            event = json.loads(body)
 
-    received_api_key = unquote(event.get("api_key", ""))
-    repo_url = unquote(event.get("repo_url", ""))
+        received_api_key = unquote(event.get("api_key", ""))
+        repo_url = unquote(event.get("repo_url", ""))
 
-    API_KEY = read_secret_from_secret_manager(api_key_secret_name, secret_name)
+        API_KEY = read_secret_from_secret_manager(api_key_secret_name, secret_name)
 
-    if received_api_key != API_KEY:
-        return {
-            "statusCode": 400,
-            "body": "api key mismatch"
+        if received_api_key != API_KEY:
+            return {
+                "statusCode": 400,
+                "body": "api key mismatch"
+                }
+        
+        pat = read_secret_from_secret_manager(github_pat_secret_name, secret_name)
+        
+        repo_git = repo_url.split("/")[-1]
+        repo_name = repo_git.replace(".git", "")
+        auth_repo_url = repo_url.replace("https://", f"https://{pat}@")
+
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        backup_path = os.path.join("/tmp", repo_name, timestamp)
+
+        git_backup_path = os.path.join(backup_path, f"{repo_name}.git")
+        git_working_backup_path = os.path.join(backup_path, repo_name)
+        bundle_path = os.path.join(backup_path, f"{repo_name}_full_backup.bundle")
+
+        os.makedirs(backup_path, exist_ok=True)
+
+        try:
+            subprocess.run(f'git clone --mirror "{auth_repo_url}" "{git_backup_path}"', shell=True, capture_output=True, text=True)
+
+            subprocess.run(f'git clone "{auth_repo_url}" "{git_working_backup_path}"', shell=True, capture_output=True, text=True)
+            
+            subprocess.run(f'git --git-dir="{git_backup_path}" bundle create "{bundle_path}" --all', shell=True, capture_output=True, text=True)
+
+            git_result = {
+                "message": "git ran successfully",
+                "status": True
             }
-    
-    pat = read_secret_from_secret_manager(github_pat_secret_name, secret_name)
-    
-    repo_git = repo_url.split("/")[-1]
-    repo_name = repo_git.replace(".git", "")
-    auth_repo_url = repo_url.replace("https://", f"https://{pat}@")
+        except subprocess.CalledProcessError as e:
+            git_result = {
+                "message": f"git failed. Error: {e}",
+                "status": False
+            }
 
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_repos_result = backup_repos_s3_bucket(timestamp, backup_path, repo_name)
+        cleanup_old_s3_result = cleanup_old_s3_backups(repo_name)
 
-    backup_path = os.path.join(repo_name, timestamp)
+        if not backup_repos_result.get("status") or not cleanup_old_s3_result.get("status") or not git_result.get("status"):
+            statusCode = 500
+        else:
+            statusCode = 200
 
-    git_backup_path = os.path.join(backup_path, f"{repo_name}.git")
-    git_working_backup_path = os.path.join(backup_path, repo_name)
-    bundle_path = os.path.join(backup_path, f"{repo_name}_full_backup.bundle")
+        return {
+                "statusCode": statusCode,
+                "body": json.dumps({
+                    "backup_repos_result": backup_repos_result,
+                    "cleanup_old_s3_result": cleanup_old_s3_result,
+                    "git_result": git_result,
+                })
+            }
 
-    os.makedirs(backup_path, exist_ok=True)
-
-    subprocess.run(f'git clone --mirror "{auth_repo_url}" "{git_backup_path}"', shell=True, capture_output=True, text=True)
-
-    subprocess.run(f'git clone "{auth_repo_url}" "{git_working_backup_path}"', shell=True, capture_output=True, text=True)
-    
-    subprocess.run(f'git --git-dir="{git_backup_path}" bundle create "{bundle_path}" --all', shell=True, capture_output=True, text=True)
-
-    backup_repos_s3_bucket(timestamp, backup_path, repo_name)
-    cleanup_old_s3_backups(repo_name)
-
-    return {
-            "statusCode": 200,
-            "body": "backup succeeded"
+    except Exception as e:
+        tb = traceback.format_exc()
+        print(tb)
+        return {
+            "statusCode": 500,
+            "body": f"Lambda failed: {str(e)}\n{tb}"
             }

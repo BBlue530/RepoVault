@@ -41,3 +41,6 @@ jobs:
             echo "${response_body}"
             exit 1
           fi
+          
+          echo "[+] Backup finished"
+          echo "${response_body}"
