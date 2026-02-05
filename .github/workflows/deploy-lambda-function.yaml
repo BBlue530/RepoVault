@@ -33,4 +33,4 @@ jobs:
       - name: Deploy lambda
         working-directory: ${{ github.workspace }}
         run: |
-          aws lambda update-function-code --function-name backup_repo_lambda --zip-file fileb://lambda.zip
+          aws lambda update-function-code --function-name repo_backup_to_s3 --zip-file fileb://lambda.zip
