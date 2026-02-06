@@ -20,7 +20,7 @@ jobs:
           CHANGED=$(git diff --name-only HEAD^ HEAD | grep '^src' || true)
           if [ -z "$CHANGED" ]; then
             echo "[+] Lambda not changed"
-            echo "lambda_function_changed=true" >> $GITHUB_OUTPUT
+            echo "lambda_function_changed=false" >> $GITHUB_OUTPUT
           else
             echo "[+] Lambda changed"
             echo "lambda_function_changed=true" >> $GITHUB_OUTPUT

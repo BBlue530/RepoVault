@@ -31,12 +31,12 @@ def backup_repos_s3_bucket(timestamp, backup_path, repo_name):
         }
     
     except Exception as e:
-        print(f"[!] Backup to s3 failed. Error: [{e}]")
+        print(f"[!] Backup to s3 failed. Error: [{str(e)}]")
         return {
             "message": f"backup to s3 failed",
             "status": False,
             "extra": {
-                "error": e
+                "error": str(e)
             }
         }
 
@@ -85,11 +85,11 @@ def cleanup_old_s3_backups(repo_name):
         }
     
     except Exception as e:
-        print(f"[!] Cleanup of s3 backups failed. Error: [{e}]")
+        print(f"[!] Cleanup of s3 backups failed. Error: [{str(e)}]")
         return {
             "message": "cleanup failed",
             "status": False,
             "extra": {
-                "error": e
+                "error": str(e)
             }
         }

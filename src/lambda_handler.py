@@ -4,7 +4,7 @@ import datetime
 import json
 import traceback
 import hashlib
-import hmac
+import shutil
 from urllib.parse import unquote
 from s3_handling import backup_repos_s3_bucket, cleanup_old_s3_backups
 from secret_manager import read_secret_from_secret_manager
@@ -27,7 +27,7 @@ def lambda_backup_repository(event, context):
         print(f"[+] Hashed received API key: [{hashed_received_api_key}]")
         print(f"[+] Hashed API key: [{HASHED_API_KEY}]")
 
-        if received_api_key != API_KEY:
+        if hashed_received_api_key != HASHED_API_KEY:
             print("[!] API key mismatch")
             return {
                 "statusCode": 400,
@@ -52,15 +52,15 @@ def lambda_backup_repository(event, context):
 
         try:
             print("[~] Mirror repo...")
-            subprocess.run(f'git clone --mirror "{auth_repo_url}" "{git_backup_path}"', shell=True, capture_output=True, text=True)
+            subprocess.run(f'git clone --mirror "{auth_repo_url}" "{git_backup_path}"', shell=True, capture_output=True, text=True, check=True)
             print("[+] Mirror repo finished")
 
             print("[~] Clone repo...")
-            subprocess.run(f'git clone "{auth_repo_url}" "{git_working_backup_path}"', shell=True, capture_output=True, text=True)
+            subprocess.run(f'git clone "{auth_repo_url}" "{git_working_backup_path}"', shell=True, capture_output=True, text=True, check=True)
             print("[+] Clone repo finished")
 
             print("[~] Bundle repo...")
-            subprocess.run(f'git --git-dir="{git_backup_path}" bundle create "{bundle_path}" --all', shell=True, capture_output=True, text=True)
+            subprocess.run(f'git --git-dir="{git_backup_path}" bundle create "{bundle_path}" --all', shell=True, capture_output=True, text=True, check=True)
             print("[+] Bundle repo finished")
 
             git_result = {
@@ -70,16 +70,40 @@ def lambda_backup_repository(event, context):
             }
 
         except subprocess.CalledProcessError as e:
-            print(f"[!] Git failed. Error: [{e}]")
+            error_output = e.stderr or e.stdout or str(e)
+
+            if isinstance(error_output, bytes):
+                error_output = error_output.decode("utf-8", errors="replace")
+
+            sterilized_error = error_output.replace(pat, "***")
+
+            print(f"[!] Git failed. Error: [{sterilized_error}]")
+
             git_result = {
                 "message": "git failed",
                 "status": False,
                 "extra": {
-                    "error": e
+                    "error": sterilized_error
                 }
+            }
+            return {
+                    "statusCode": 500,
+                    "body": json.dumps({
+                    "git_result": git_result,
+                })
             }
 
         backup_repos_result = backup_repos_s3_bucket(timestamp, backup_path, repo_name)
+        
+        if not backup_repos_result.get("status"):
+            return {
+                    "statusCode": 500,
+                    "body": json.dumps({
+                    "backup_repos_result": backup_repos_result,
+                    "git_result": git_result,
+                })
+            }
+
         cleanup_old_s3_result = cleanup_old_s3_backups(repo_name)
 
         if not backup_repos_result.get("status") or not cleanup_old_s3_result.get("status") or not git_result.get("status"):
@@ -104,7 +128,7 @@ def lambda_backup_repository(event, context):
             "message": "lambda failed",
             "status": False,
             "extra": {
-                "error": e,
+                "error": str(e),
                 "traceback": tb
             }
         }
@@ -112,3 +136,6 @@ def lambda_backup_repository(event, context):
             "statusCode": 500,
             "body": lambda_status
             }
+    
+    finally:
+        shutil.rmtree(os.path.join("/tmp", repo_name), ignore_errors=True)
