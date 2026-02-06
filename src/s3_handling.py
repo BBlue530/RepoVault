@@ -2,6 +2,7 @@ import boto3
 import os
 import tempfile
 import tarfile
+from helpers import format_file_size
 
 def backup_repos_s3_bucket(timestamp, backup_path, repo_name):
     try:
@@ -16,6 +17,10 @@ def backup_repos_s3_bucket(timestamp, backup_path, repo_name):
             tar.add(backup_path, arcname=os.path.basename(backup_path))
         print("[+] Compressing finished")
 
+        size_bytes = os.path.getsize(archive_path)
+        archive_size = format_file_size(size_bytes)
+        print(f"[+] Archive size: {archive_size}")
+
         s3 = boto3.client("s3")
 
         s3_key = os.path.join(bucket_key_prefix, repo_name, archive_name).replace("\\", "/")
@@ -27,7 +32,9 @@ def backup_repos_s3_bucket(timestamp, backup_path, repo_name):
         return {
             "message": "backup to s3 ran successfully",
             "status": True,
-            "extra": None
+            "extra": {
+                "archive_size": archive_size
+            }
         }
     
     except Exception as e:

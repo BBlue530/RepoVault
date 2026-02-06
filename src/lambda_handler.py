@@ -8,6 +8,7 @@ import shutil
 from urllib.parse import unquote
 from s3_handling import backup_repos_s3_bucket, cleanup_old_s3_backups
 from secret_manager import read_secret_from_secret_manager
+from helpers import sterilize_output
 from variables import *
 
 def lambda_backup_repository(event, context):
@@ -25,7 +26,7 @@ def lambda_backup_repository(event, context):
         HASHED_API_KEY = hashlib.sha256(API_KEY.encode("utf-8")).hexdigest()
 
         print(f"[+] Hashed received API key: [{hashed_received_api_key}]")
-        print(f"[+] Hashed API key: [{HASHED_API_KEY}]")
+        print(f"[+] Hashed API key:          [{HASHED_API_KEY}]")
 
         if hashed_received_api_key != HASHED_API_KEY:
             print("[!] API key mismatch")
@@ -50,32 +51,38 @@ def lambda_backup_repository(event, context):
 
         os.makedirs(backup_path, exist_ok=True)
 
+        sterilized_mirror_clone_result = ""
+        sterilized_clone_result = ""
+        sterilized_bundle_result = ""
+
         try:
             print("[~] Mirror repo...")
-            subprocess.run(f'git clone --mirror "{auth_repo_url}" "{git_backup_path}"', shell=True, capture_output=True, text=True, check=True)
+            mirror_clone_result = subprocess.run(f'git clone --mirror "{auth_repo_url}" "{git_backup_path}"', shell=True, capture_output=True, text=True, check=True)
+            sterilized_mirror_clone_result = sterilize_output(mirror_clone_result, pat)
             print("[+] Mirror repo finished")
 
             print("[~] Clone repo...")
-            subprocess.run(f'git clone "{auth_repo_url}" "{git_working_backup_path}"', shell=True, capture_output=True, text=True, check=True)
+            clone_result = subprocess.run(f'git clone "{auth_repo_url}" "{git_working_backup_path}"', shell=True, capture_output=True, text=True, check=True)
+            sterilized_clone_result = sterilize_output(clone_result, pat)
             print("[+] Clone repo finished")
 
             print("[~] Bundle repo...")
-            subprocess.run(f'git --git-dir="{git_backup_path}" bundle create "{bundle_path}" --all', shell=True, capture_output=True, text=True, check=True)
+            bundle_result = subprocess.run(f'git --git-dir="{git_backup_path}" bundle create "{bundle_path}" --all', shell=True, capture_output=True, text=True, check=True)
+            sterilized_bundle_result = sterilize_output(bundle_result, pat)
             print("[+] Bundle repo finished")
 
             git_result = {
                 "message": "git ran successfully",
                 "status": True,
-                "extra": None
+                "extra": {
+                    "mirror_clone_result": sterilized_mirror_clone_result,
+                    "clone_result": sterilized_clone_result,
+                    "bundle_result": sterilized_bundle_result
+                }
             }
 
         except subprocess.CalledProcessError as e:
-            error_output = e.stderr or e.stdout or str(e)
-
-            if isinstance(error_output, bytes):
-                error_output = error_output.decode("utf-8", errors="replace")
-
-            sterilized_error = error_output.replace(pat, "***")
+            sterilized_error = sterilize_output(e, pat)
 
             print(f"[!] Git failed. Error: [{sterilized_error}]")
 
@@ -83,7 +90,10 @@ def lambda_backup_repository(event, context):
                 "message": "git failed",
                 "status": False,
                 "extra": {
-                    "error": sterilized_error
+                    "error": sterilized_error,
+                    "mirror_clone_result": sterilized_mirror_clone_result,
+                    "clone_result": sterilized_clone_result,
+                    "bundle_result": sterilized_bundle_result
                 }
             }
             return {
