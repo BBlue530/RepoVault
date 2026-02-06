@@ -11,14 +11,18 @@ def backup_repos_s3_bucket(timestamp, backup_path, repo_name):
         archive_name = f"{timestamp}.tar.gz"
         archive_path = os.path.join(tempfile.gettempdir(), archive_name)
 
+        print("[~] Compressing backup...")
         with tarfile.open(archive_path, "w:gz") as tar:
             tar.add(backup_path, arcname=os.path.basename(backup_path))
+        print("[+] Compressing finished")
 
         s3 = boto3.client("s3")
 
         s3_key = os.path.join(bucket_key_prefix, repo_name, archive_name).replace("\\", "/")
 
+        print("[~] Uploading backup to s3...")
         s3.upload_file(archive_path, bucket, s3_key)
+        print("[+] Upload finished")
 
         return {
             "message": "backup to s3 ran successfully",
@@ -27,6 +31,7 @@ def backup_repos_s3_bucket(timestamp, backup_path, repo_name):
         }
     
     except Exception as e:
+        print(f"[!] Backup to s3 failed. Error: [{e}]")
         return {
             "message": f"backup to s3 failed",
             "status": False,
@@ -37,6 +42,7 @@ def backup_repos_s3_bucket(timestamp, backup_path, repo_name):
 
 def cleanup_old_s3_backups(repo_name):
     try:
+        print("[~] Starting cleanup of s3 backups...")
         max_entries=10
 
         bucket = "blue-bucket-general-purpose"
@@ -67,6 +73,8 @@ def cleanup_old_s3_backups(repo_name):
             s3.delete_object(Bucket=bucket, Key=key)
             deleted_backups.append(timestamp)
 
+        print("[+] Cleanup of s3 backups finished")
+
         return {
             "message": "cleanup ran successfully",
             "status": True,
@@ -77,6 +85,7 @@ def cleanup_old_s3_backups(repo_name):
         }
     
     except Exception as e:
+        print(f"[!] Cleanup of s3 backups failed. Error: [{e}]")
         return {
             "message": "cleanup failed",
             "status": False,
