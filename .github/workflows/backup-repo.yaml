@@ -38,9 +38,9 @@ jobs:
 
           if [[ "$http_status" -lt 200 || "$http_status" -ge 300 ]]; then
             echo "[!] Backup failed!"
-            echo "${response_body}"
+            echo "${response_body}" | jq .
             exit 1
           fi
           
           echo "[+] Backup finished"
-          echo "${response_body}"
+          echo "${response_body}" | jq .

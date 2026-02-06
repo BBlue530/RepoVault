@@ -22,12 +22,17 @@ def backup_repos_s3_bucket(timestamp, backup_path, repo_name):
 
         return {
             "message": "backup to s3 ran successfully",
-            "status": True
+            "status": True,
+            "extra": None
         }
+    
     except Exception as e:
         return {
-            "message": f"backup to s3 failed. Error: {e}",
-            "status": False
+            "message": f"backup to s3 failed",
+            "status": False,
+            "extra": {
+                "error": e
+            }
         }
 
 def cleanup_old_s3_backups(repo_name):
@@ -56,15 +61,26 @@ def cleanup_old_s3_backups(repo_name):
 
         backups.sort(key=lambda x: x[0], reverse=True)
 
-        for _, key in backups[max_entries:]:
+        deleted_backups = []
+
+        for timestamp, key in backups[max_entries:]:
             s3.delete_object(Bucket=bucket, Key=key)
-        
+            deleted_backups.append(timestamp)
+
         return {
             "message": "cleanup ran successfully",
-            "status": True
+            "status": True,
+            "extra": {
+                "deleted_count": len(deleted_backups),
+                "deleted_timestamps": deleted_backups
+            }
         }
+    
     except Exception as e:
         return {
-            "message": f"cleanup failed. Error: {e}",
-            "status": False
+            "message": "cleanup failed",
+            "status": False,
+            "extra": {
+                "error": e
+            }
         }

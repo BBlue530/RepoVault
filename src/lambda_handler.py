@@ -50,12 +50,17 @@ def lambda_backup_repository(event, context):
 
             git_result = {
                 "message": "git ran successfully",
-                "status": True
+                "status": True,
+                "extra": None
             }
+
         except subprocess.CalledProcessError as e:
             git_result = {
-                "message": f"git failed. Error: {e}",
-                "status": False
+                "message": "git failed",
+                "status": False,
+                "extra": {
+                    "error": e
+                }
             }
 
         backup_repos_result = backup_repos_s3_bucket(timestamp, backup_path, repo_name)
@@ -77,8 +82,15 @@ def lambda_backup_repository(event, context):
 
     except Exception as e:
         tb = traceback.format_exc()
-        print(tb)
+        lambda_status = {
+            "message": "lambda failed",
+            "status": False,
+            "extra": {
+                "error": e,
+                "traceback": tb
+            }
+        }
         return {
             "statusCode": 500,
-            "body": f"Lambda failed: {str(e)}\n{tb}"
+            "body": lambda_status
             }
