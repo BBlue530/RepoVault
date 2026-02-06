@@ -3,6 +3,10 @@ name: Base Orchestrator Pipeline
 on:
   push:
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
 
   check-changes:
@@ -26,8 +30,17 @@ jobs:
             echo "lambda_function_changed=true" >> $GITHUB_OUTPUT
           fi
 
-  deploy-lambda:
+  trigger-docker-build-lambda:
     needs: check-changes
+    if: ${{ needs.check-changes.outputs.lambda_function_changed == 'true' }}
+    uses: ./.github/workflows/docker-builder.yaml
+    with:
+      WORK_DIR: "./"
+      IMAGE_NAME: "ghcr.io/bblue530/backup_repo_lambda"
+      WILDCARD_COMMAND: ""
+
+  deploy-lambda:
+    needs: trigger-docker-build-lambda
     if: ${{ needs.check-changes.outputs.lambda_function_changed == 'true' }}
     uses: ./.github/workflows/deploy-lambda-function.yaml
     secrets:
