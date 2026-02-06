@@ -83,8 +83,10 @@ def lambda_backup_repository(event, context):
         cleanup_old_s3_result = cleanup_old_s3_backups(repo_name)
 
         if not backup_repos_result.get("status") or not cleanup_old_s3_result.get("status") or not git_result.get("status"):
+            print("[!] Backup failed")
             statusCode = 500
         else:
+            print("[+] Backup finished")
             statusCode = 200
 
         return {
