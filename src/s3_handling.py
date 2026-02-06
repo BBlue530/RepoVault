@@ -2,6 +2,7 @@ import boto3
 import os
 import tempfile
 import tarfile
+from datetime import datetime
 from helpers import format_file_size
 
 def backup_repos_s3_bucket(timestamp, backup_path, repo_name):
@@ -69,18 +70,43 @@ def cleanup_old_s3_backups(repo_name):
 
                 if key.endswith(".tar.gz"):
                     filename = os.path.basename(key)
-                    timestamp = filename.replace(".tar.gz", "")
-                    backups.append((timestamp, key))
+                    timestamp_str = filename.replace(".tar.gz", "")
+                    try:
+                        timestamp = datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S")
+                    except ValueError:
+                        print(f"[!] Skipping file with invalid timestamp: {filename}")
+                        continue
+                    backups.append((timestamp_str, timestamp, key))
 
         backups.sort(key=lambda x: x[0], reverse=True)
 
+        kept_backups = []
+        backups_to_delete = []
         deleted_backups = []
+        seen_days = set()
 
-        for timestamp, key in backups[max_entries:]:
+        for timestamp_str, timestamp, key in backups:
+            day_str = timestamp.strftime("%Y-%m-%d")
+            if day_str not in seen_days:
+                kept_backups.append((timestamp, key))
+                seen_days.add(day_str)
+            else:
+                backups_to_delete.append((timestamp, key))
+                # need to be here or it will crash the lambda. The process still happens but it returns internal error
+                deleted_backups.append(timestamp_str)
+
+
+        if len(kept_backups) > max_entries:
+            to_delete = kept_backups[max_entries:]
+            kept_backups = kept_backups[:max_entries]
+            backups_to_delete.extend(to_delete)
+
+        for timestamp, key in backups_to_delete:
             s3.delete_object(Bucket=bucket, Key=key)
-            deleted_backups.append(timestamp)
 
-        print("[+] Cleanup of s3 backups finished")
+        print("[+] Cleanup of S3 backups finished")
+        print(f"[+] Deleted backups: [{deleted_backups}]")
+        print(f"[+] Deleted backups count: [{len(deleted_backups)}]")
 
         return {
             "message": "cleanup ran successfully",
@@ -100,4 +126,3 @@ def cleanup_old_s3_backups(repo_name):
                 "error": str(e)
             }
         }
-    

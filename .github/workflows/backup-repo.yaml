@@ -24,7 +24,9 @@ jobs:
 
       - name: Backup Repo
         working-directory: ${{ github.workspace }}
+        # Sleep is there so the lambda has time to update with the new container image
         run: |
+          sleep 10
           response_and_status=$(curl --connect-timeout 60 --max-time 300 -s -w "\n%{http_code}" \
             -H "Content-Type: application/json" \
             -d '{
