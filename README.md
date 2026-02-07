@@ -18,6 +18,8 @@ A fully automated AWS Lambda solution for backing up Git repositories to S3 usin
 
 - Containerized Lambda function for consistent deployment
 
+- IP whitelist to only allow GitHub Actions access
+
 ---
 
 ## Architecture
