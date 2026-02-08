@@ -10,6 +10,7 @@ from s3_handling import backup_repos_s3_bucket, cleanup_old_s3_backups
 from secret_manager import read_secret_from_secret_manager
 from helpers import sterilize_output
 from ip_whitelist import verify_ip_whitelist
+from alert import alert_webhook
 from variables import *
 
 def lambda_backup_repository(event, context):
@@ -18,6 +19,8 @@ def lambda_backup_repository(event, context):
         event_body = json.loads(body)
 
     received_api_key = unquote(event_body.get("api_key", ""))
+    hashed_received_api_key = hashlib.sha256(received_api_key.encode("utf-8")).hexdigest()
+
     repo_url = unquote(event_body.get("repo_url", ""))
 
     client_ip = event.get("requestContext", {}).get("http", {}).get("sourceIp")
@@ -25,14 +28,18 @@ def lambda_backup_repository(event, context):
 
     if not verify_ip_whitelist(client_ip):
         print("[!] Client ip not found in whitelist")
+        print(f"[!] Received hashed API key: [{hashed_received_api_key}]")
+        print(f"[!] Received repository url: [{repo_url}]")
+
+        DISCORD_WEBHOOK = read_secret_from_secret_manager(discord_webhook_secret_name, secret_name)
+        alert_webhook(DISCORD_WEBHOOK, "IP not found in whitelist", "A disallowed client ip attempted to interact with lambda function.")
+
         return {
             "statusCode": 403,
             "body": json.dumps({"error": "IP not allowed"})
             }
     
     API_KEY = read_secret_from_secret_manager(api_key_secret_name, secret_name)
-
-    hashed_received_api_key = hashlib.sha256(received_api_key.encode("utf-8")).hexdigest()
     HASHED_API_KEY = hashlib.sha256(API_KEY.encode("utf-8")).hexdigest()
 
     print(f"[+] Hashed received API key: [{hashed_received_api_key}]")
@@ -40,6 +47,12 @@ def lambda_backup_repository(event, context):
 
     if hashed_received_api_key != HASHED_API_KEY:
         print("[!] API key mismatch")
+        print(f"[!] Received hashed API key: [{hashed_received_api_key}]")
+        print(f"[!] Received repository url: [{repo_url}]")
+
+        DISCORD_WEBHOOK = read_secret_from_secret_manager(discord_webhook_secret_name, secret_name)
+        alert_webhook(DISCORD_WEBHOOK, "API key mismatch", "API key mismatch.")
+        
         return {
             "statusCode": 400,
             "body": json.dumps({"error": "api key mismatch"})
