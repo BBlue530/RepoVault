@@ -32,7 +32,7 @@ def lambda_backup_repository(event, context):
         print(f"[!] Received repository url: [{repo_url}]")
 
         DISCORD_WEBHOOK = read_discord_webhook_secret()
-        alert_webhook(DISCORD_WEBHOOK, "Client IP not found in whitelist", "A client IP attempted to interact with lambda function.")
+        alert_webhook(DISCORD_WEBHOOK, "Client IP not found in whitelist", "A client IP attempted to interact with lambda function.", context)
 
         return {
             "statusCode": 403,
@@ -50,7 +50,7 @@ def lambda_backup_repository(event, context):
         print(f"[!] Received repository url: [{repo_url}]")
 
         DISCORD_WEBHOOK = read_discord_webhook_secret()
-        alert_webhook(DISCORD_WEBHOOK, "API key mismatch", "API key mismatch.")
+        alert_webhook(DISCORD_WEBHOOK, "API key mismatch", "API key mismatch.", context)
 
         return {
             "statusCode": 400,

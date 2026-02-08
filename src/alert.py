@@ -1,14 +1,20 @@
 import requests
 import json
 
-def alert_webhook(DISCORD_WEBHOOK, alert, message):
+def alert_webhook(DISCORD_WEBHOOK, alert, message, context):
     payload = {
         "embeds": [{
             "title": f"🚨 {alert}",
             "description": message,
-            "color": 16711680
+            "color": 16711680,
+            "fields": [
+                {"name": "Lambda", "value": context.function_name, "inline": True},
+                {"name": "Version", "value": context.function_version, "inline": True},
+                {"name": "Request ID", "value": context.aws_request_id, "inline": False},
+            ]
         }]
     }
+
     response = requests.post(
         DISCORD_WEBHOOK,
         data=json.dumps(payload),
