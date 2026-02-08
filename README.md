@@ -20,29 +20,47 @@ A fully automated AWS Lambda solution for backing up Git repositories to S3 usin
 
 - IP whitelist to only allow GitHub Actions access
 
+- Alerts using Discord webhook
+
 ---
 
 ## Architecture
 
 ### Lambda Function
 
-- Receives Git repository URL and API key
-
-- Validates API key against AWS Secrets Manager
-
-- Clones repository (mirror and normal)
-
-- Creates a bundle backup of the repo
-
-- Uploads backups to S3
-
-- Cleans up old backups in S3
+```
+AWS Lambda Function
+        │
+        └─Receive repository URL + API key
+            │
+            └─Verify client IP against GitHub Actions whitelist
+                │   └─Reject if not allowed (403)
+                │
+                └─Validate API key
+                    │   └─Load hashed key from cache
+                    │       └─Fetch from AWS Secrets Manager if not cached yet
+                    │           └─Cache secret
+                    │
+                    ├─Clone repository
+                    │   ├─Mirror clone
+                    │   ├─Standard clone
+                    │   └─Create bundle backup
+                    │
+                    ├─Compress backup artifacts
+                    │   └─Upload backups to Amazon S3
+                    │
+                    └─Cleanup old S3 backups (retain latest 10)
+```
 
 ### AWS Secrets Manager
 
-- Stores GitHub Personal Access Token (PAT)
+The Lambda expects 3 secrets to exists in secret name `repo_backup_secrets`:
 
-- Stores API key for Lambda authentication
+- `api_key`. Used to authenticate with the Lambda. When cached its stored hashed.
+
+- `github_pat`. Used to authenticate with Github. Only needed if used on private repository.
+
+- `discord_webhook`. Used to alert when either API key mismatch or disallowed client IP interacting with the Lambda.
 
 ### S3 Bucket
 
