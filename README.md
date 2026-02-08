@@ -1,6 +1,6 @@
-# Backup Repo Lambda
+# RepoVault
 
-A fully automated AWS Lambda solution for backing up Git repositories to S3 using Containerized Lambda functions. This project provides repository mirroring, cloning, bundling, and backup cleanup with secure API key authentication.
+RepoVault is a fully automated AWS Lambda solution for backing up Git repositories to S3 using Containerized Lambda functions. RepoVault provides repository mirroring, cloning, bundling, and backup cleanup with secure API key authentication.
 
 ---
 
