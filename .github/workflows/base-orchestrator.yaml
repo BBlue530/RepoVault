@@ -53,5 +53,4 @@ jobs:
     uses: ./.github/workflows/backup-repo.yaml
     secrets:
       API_KEY: ${{ secrets.API_KEY }}
-      REPO_URL: ${{ secrets.REPO_URL }}
       BACKUP_LAMBDA_FUNCTION_URL: ${{ secrets.BACKUP_LAMBDA_FUNCTION_URL }}

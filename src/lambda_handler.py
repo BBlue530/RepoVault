@@ -25,11 +25,11 @@ def lambda_backup_repository(event, context):
 
     client_ip = event.get("requestContext", {}).get("http", {}).get("sourceIp")
     print(f"[+] Client ip: [{client_ip}]")
+    print(f"[+] Received repository url: [{repo_url}]")
 
     if not verify_ip_whitelist(client_ip):
         print("[!] Client ip not found in whitelist")
         print(f"[!] Received hashed API key: [{hashed_received_api_key}]")
-        print(f"[!] Received repository url: [{repo_url}]")
 
         DISCORD_WEBHOOK = read_discord_webhook_secret()
         alert_webhook(DISCORD_WEBHOOK, "Client IP not found in whitelist", "A client IP attempted to interact with lambda function.", context)
@@ -47,7 +47,6 @@ def lambda_backup_repository(event, context):
     if hashed_received_api_key != HASHED_API_KEY:
         print("[!] API key mismatch")
         print(f"[!] Received hashed API key: [{hashed_received_api_key}]")
-        print(f"[!] Received repository url: [{repo_url}]")
 
         DISCORD_WEBHOOK = read_discord_webhook_secret()
         alert_webhook(DISCORD_WEBHOOK, "API key mismatch", "API key mismatch.", context)

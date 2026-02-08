@@ -5,18 +5,16 @@ on:
     secrets:
       API_KEY:
         required: true
-      REPO_URL:
-        required: true
       BACKUP_LAMBDA_FUNCTION_URL:
         required: true
 
 jobs:
-  deploy-lambda:
+  backup-repo:
     runs-on: ubuntu-latest
     env:
       API_KEY: ${{ secrets.API_KEY }}
-      REPO_URL: ${{ secrets.REPO_URL }}
       BACKUP_LAMBDA_FUNCTION_URL: ${{ secrets.BACKUP_LAMBDA_FUNCTION_URL }}
+      REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
 
     steps:
 
