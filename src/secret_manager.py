@@ -1,6 +1,12 @@
 import boto3
 import base64
 import json
+import hashlib
+from variables import *
+
+HASHED_API_KEY = None
+DISCORD_WEBHOOK = None
+PAT = None
 
 def read_secret_from_secret_manager(secret_key_name, secret_name):
     client = boto3.client("secretsmanager")
@@ -21,3 +27,34 @@ def read_secret_from_secret_manager(secret_key_name, secret_name):
         raise KeyError(f"[!] Key: '{secret_key_name}' not found in secret '{secret_name}'")
 
     return secret_obj[secret_key_name]
+
+def read_api_key_secret():
+    global HASHED_API_KEY
+    if HASHED_API_KEY is not None:
+        print("[+] API key already present")
+        return HASHED_API_KEY
+    
+    print("[+] Calling secret manager for API key")
+    API_KEY = read_secret_from_secret_manager(api_key_secret_name, secret_name)
+    HASHED_API_KEY = hashlib.sha256(API_KEY.encode("utf-8")).hexdigest()
+    return HASHED_API_KEY
+
+def read_discord_webhook_secret():
+    global DISCORD_WEBHOOK
+    if DISCORD_WEBHOOK is not None:
+        print("[+] Discord webhook already present")
+        return DISCORD_WEBHOOK
+    
+    print("[+] Calling secret manager for Discord webhook")
+    DISCORD_WEBHOOK = read_secret_from_secret_manager(discord_webhook_secret_name, secret_name)
+    return DISCORD_WEBHOOK
+
+def read_pat_secret():
+    global PAT
+    if PAT is not None:
+        print("[+] PAT already present")
+        return PAT
+    
+    print("[+] Calling secret manager for PAT")
+    PAT = read_secret_from_secret_manager(github_pat_secret_name, secret_name)
+    return PAT

@@ -7,7 +7,7 @@ import hashlib
 import shutil
 from urllib.parse import unquote
 from s3_handling import backup_repos_s3_bucket, cleanup_old_s3_backups
-from secret_manager import read_secret_from_secret_manager
+from secret_manager import read_api_key_secret, read_discord_webhook_secret, read_pat_secret
 from helpers import sterilize_output
 from ip_whitelist import verify_ip_whitelist
 from alert import alert_webhook
@@ -31,16 +31,15 @@ def lambda_backup_repository(event, context):
         print(f"[!] Received hashed API key: [{hashed_received_api_key}]")
         print(f"[!] Received repository url: [{repo_url}]")
 
-        DISCORD_WEBHOOK = read_secret_from_secret_manager(discord_webhook_secret_name, secret_name)
-        alert_webhook(DISCORD_WEBHOOK, "IP not found in whitelist", "A disallowed client ip attempted to interact with lambda function.")
+        DISCORD_WEBHOOK = read_discord_webhook_secret()
+        alert_webhook(DISCORD_WEBHOOK, "Client IP not found in whitelist", "A client IP attempted to interact with lambda function.")
 
         return {
             "statusCode": 403,
             "body": json.dumps({"error": "IP not allowed"})
             }
     
-    API_KEY = read_secret_from_secret_manager(api_key_secret_name, secret_name)
-    HASHED_API_KEY = hashlib.sha256(API_KEY.encode("utf-8")).hexdigest()
+    HASHED_API_KEY = read_api_key_secret()
 
     print(f"[+] Hashed received API key: [{hashed_received_api_key}]")
     print(f"[+] Hashed API key: [{HASHED_API_KEY}]")
@@ -50,20 +49,20 @@ def lambda_backup_repository(event, context):
         print(f"[!] Received hashed API key: [{hashed_received_api_key}]")
         print(f"[!] Received repository url: [{repo_url}]")
 
-        DISCORD_WEBHOOK = read_secret_from_secret_manager(discord_webhook_secret_name, secret_name)
+        DISCORD_WEBHOOK = read_discord_webhook_secret()
         alert_webhook(DISCORD_WEBHOOK, "API key mismatch", "API key mismatch.")
-        
+
         return {
             "statusCode": 400,
             "body": json.dumps({"error": "api key mismatch"})
             }
         
     try:
-        pat = read_secret_from_secret_manager(github_pat_secret_name, secret_name)
+        PAT = read_pat_secret()
         
         repo_git = repo_url.split("/")[-1]
         repo_name = repo_git.replace(".git", "")
-        auth_repo_url = repo_url.replace("https://", f"https://{pat}@")
+        auth_repo_url = repo_url.replace("https://", f"https://{PAT}@")
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -82,17 +81,17 @@ def lambda_backup_repository(event, context):
         try:
             print("[~] Mirror repo...")
             mirror_clone_result = subprocess.run(f'git clone --mirror "{auth_repo_url}" "{git_backup_path}"', shell=True, capture_output=True, text=True, check=True)
-            sterilized_mirror_clone_result = sterilize_output(mirror_clone_result, pat)
+            sterilized_mirror_clone_result = sterilize_output(mirror_clone_result, PAT)
             print("[+] Mirror repo finished")
 
             print("[~] Clone repo...")
             clone_result = subprocess.run(f'git clone "{auth_repo_url}" "{git_working_backup_path}"', shell=True, capture_output=True, text=True, check=True)
-            sterilized_clone_result = sterilize_output(clone_result, pat)
+            sterilized_clone_result = sterilize_output(clone_result, PAT)
             print("[+] Clone repo finished")
 
             print("[~] Bundle repo...")
             bundle_result = subprocess.run(f'git --git-dir="{git_backup_path}" bundle create "{bundle_path}" --all', shell=True, capture_output=True, text=True, check=True)
-            sterilized_bundle_result = sterilize_output(bundle_result, pat)
+            sterilized_bundle_result = sterilize_output(bundle_result, PAT)
             print("[+] Bundle repo finished")
 
             git_result = {
@@ -106,7 +105,7 @@ def lambda_backup_repository(event, context):
             }
 
         except subprocess.CalledProcessError as e:
-            sterilized_error = sterilize_output(e, pat)
+            sterilized_error = sterilize_output(e, PAT)
 
             print(f"[!] Git failed. Error: [{sterilized_error}]")
 
