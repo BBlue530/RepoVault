@@ -7,8 +7,8 @@ from helpers import format_file_size
 
 def backup_repos_s3_bucket(timestamp, backup_path, repo_name):
     try:
-        bucket = "blue-bucket-general-purpose"
-        bucket_key_prefix = "repo_backups_lambda_function"
+        bucket = os.environ.get("BUCKET")
+        bucket_key_prefix = os.environ.get("BUCKET_KEY")
 
         archive_name = f"{timestamp}.tar.gz"
         archive_path = os.path.join(tempfile.gettempdir(), archive_name)
@@ -26,7 +26,7 @@ def backup_repos_s3_bucket(timestamp, backup_path, repo_name):
 
         s3_key = os.path.join(bucket_key_prefix, repo_name, archive_name).replace("\\", "/")
 
-        print("[~] Uploading backup to s3...")
+        print(f"[~] Uploading backup to s3://{bucket}/{s3_key}...")
         s3.upload_file(archive_path, bucket, s3_key)
         print("[+] Upload finished")
 

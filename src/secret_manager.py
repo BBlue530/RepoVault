@@ -2,7 +2,7 @@ import boto3
 import base64
 import json
 import hashlib
-from variables import *
+import os
 
 HASHED_API_KEY = None
 DISCORD_WEBHOOK = None
@@ -30,6 +30,9 @@ def read_secret_from_secret_manager(secret_key_name, secret_name):
 
 def read_api_key_secret():
     global HASHED_API_KEY
+    secret_name = os.environ.get("SECRET_NAME")
+    api_key_secret_name = os.environ.get("API_SECRET_NAME")
+    
     if HASHED_API_KEY is not None:
         print("[+] API key already present")
         return HASHED_API_KEY
@@ -41,6 +44,9 @@ def read_api_key_secret():
 
 def read_discord_webhook_secret():
     global DISCORD_WEBHOOK
+    secret_name = os.environ.get("SECRET_NAME")
+    discord_webhook_secret_name = os.environ.get("DISCORD_WEBHOOK_SECRET_NAME")
+
     if DISCORD_WEBHOOK is not None:
         print("[+] Discord webhook already present")
         return DISCORD_WEBHOOK
@@ -51,6 +57,9 @@ def read_discord_webhook_secret():
 
 def read_pat_secret():
     global PAT
+    secret_name = os.environ.get("SECRET_NAME")
+    github_pat_secret_name = os.environ.get("GITHUB_PAT_SECRET_NAME")
+
     if PAT is not None:
         print("[+] PAT already present")
         return PAT

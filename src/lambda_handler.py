@@ -11,7 +11,6 @@ from secret_manager import read_api_key_secret, read_discord_webhook_secret, rea
 from helpers import sterilize_output
 from ip_whitelist import verify_ip_whitelist
 from alert import alert_webhook
-from variables import *
 
 def lambda_backup_repository(event, context):
     body = event.get("body")
