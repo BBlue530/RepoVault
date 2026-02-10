@@ -52,21 +52,41 @@ AWS Lambda Function
                     └─Cleanup old S3 backups (retain latest 10)
 ```
 
-### AWS Secrets Manager
+### Secrets
 
-The Lambda expects 3 secrets to exists in secret name `repo_backup_secrets`:
+RepoVault expects 3 secrets to exists:
 
-- `api_key`. Used to authenticate with the Lambda. When cached its stored hashed.
+- An API key. Used to authenticate with the Lambda. When cached its stored hashed.
 
-- `github_pat`. Used to authenticate with Github. Only needed if used on private repository.
+- Github PAT. Used to authenticate with Github. Only needed if used on private repository.
 
-- `discord_webhook`. Used to alert when either API key mismatch or disallowed client IP interacting with the Lambda.
+- Discord webhook. Used to alert when either API key mismatch or disallowed client IP interacting with the Lambda.
 
 ### S3 Bucket
 
 - Stores compressed backups (.tar.gz)
 
 - Automatically retains the latest 10 backups
+
+---
+
+## Deployment
+
+### Environment Variables
+
+When deploying the container image to a Lambda function you will need these environment variables:
+ 
+- `SECRET_NAME`. The secret name that the needed secrets exist.
+
+- `API_SECRET_NAME`. The key for the API key.
+
+- `GITHUB_PAT_SECRET_NAME`. The key for the PAT.
+
+- `DISCORD_WEBHOOK_SECRET_NAME`. The key for the Discord webhook.
+
+- `BUCKET`. The bucket where backups will be uploaded to.
+
+- `BUCKET_KEY`. The bucket key prefix where backups will be uploaded to(Optional).
 
 ---
 
