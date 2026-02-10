@@ -53,8 +53,8 @@ def cleanup_old_s3_backups(repo_name):
         print("[~] Starting cleanup of s3 backups...")
         max_entries=10
 
-        bucket = "blue-bucket-general-purpose"
-        bucket_key_prefix = "repo_backups_lambda_function"
+        bucket = os.environ.get("BUCKET")
+        bucket_key_prefix = os.environ.get("BUCKET_KEY")
 
         prefix = f"{bucket_key_prefix}/{repo_name}/"
 
@@ -94,6 +94,7 @@ def cleanup_old_s3_backups(repo_name):
                 backups_to_delete.append((timestamp, key))
                 # need to be here or it will crash the lambda. The process still happens but it returns internal error
                 deleted_backups.append(timestamp_str)
+                print(f"[~] Deleting [{timestamp_str}]...")
 
 
         if len(kept_backups) > max_entries:
