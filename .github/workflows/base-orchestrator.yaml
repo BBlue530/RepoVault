@@ -6,6 +6,7 @@ on:
 permissions:
   contents: read
   packages: write
+  id-token: write
 
 jobs:
 
@@ -44,8 +45,7 @@ jobs:
     if: ${{ needs.check-changes.outputs.lambda_function_changed == 'true' }}
     uses: ./.github/workflows/deploy-lambda-function.yaml
     secrets:
-      ACCESS_KEY: ${{ secrets.ACCESS_KEY }}
-      SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS_KEY }}
+      ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}
 
   backup-repo:
     needs: deploy-lambda
