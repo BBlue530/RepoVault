@@ -29,7 +29,7 @@ jobs:
 
       - name: Pull Lambda container image
         run: |
-          docker pull ghcr.io/bblue530/backup_repo_lambda:latest
+          docker pull ghcr.io/bblue530/repovault_lambda:latest
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -39,19 +39,19 @@ jobs:
 
       - name: Push image to ECR and Update Lambda
         run: |
-          aws ecr describe-repositories --repository-names repo_backup_to_s3 || \
-            aws ecr create-repository --repository-name repo_backup_to_s3
+          aws ecr describe-repositories --repository-names repovault_lambda || \
+            aws ecr create-repository --repository-name repovault_lambda
 
           docker login \
             --username AWS \
             --password $(aws ecr get-login-password --region eu-north-1) \
             $ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com
 
-          docker tag ghcr.io/bblue530/backup_repo_lambda:latest \
-            $ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/repo_backup_to_s3:latest
+          docker tag ghcr.io/bblue530/repovault_lambda:latest \
+            $ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/repovault_lambda:latest
 
-          docker push $ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/repo_backup_to_s3:latest
+          docker push $ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/repovault_lambda:latest
 
           aws lambda update-function-code \
-            --function-name repo_backup_to_s3 \
-            --image-uri $ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/repo_backup_to_s3:latest
+            --function-name repovault_lambda \
+            --image-uri $ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/repovault_lambda:latest
