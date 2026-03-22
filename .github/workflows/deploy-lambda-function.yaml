@@ -34,7 +34,7 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.ACCOUNT_ID }}:role/BBlue530-repovault-oidc
+          role-to-assume: arn:aws:iam::${{ secrets.ACCOUNT_ID }}:role/repovault-github-ci-cd-deploy-upload-oidc-role
           aws-region: eu-north-1
 
       - name: Push image to ECR and Update Lambda
