@@ -88,6 +88,8 @@ When deploying the container image to a Lambda function you will need these envi
 
 - `BUCKET_KEY`. The bucket key prefix where backups will be uploaded to(Optional).
 
+- `ENABLE_IP_WHITELIST`. Set to `false` if you do not want the ip whitelist to be active(Optional).
+
 ---
 
 ## Usage
