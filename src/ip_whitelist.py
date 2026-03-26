@@ -1,5 +1,6 @@
 import requests
 import ipaddress
+import os
 
 GITHUB_IPS_CACHE = None
 
@@ -24,11 +25,16 @@ def verify_ip_whitelist(client_ip):
         client_ip_addr = ipaddress.ip_address(client_ip)
     except ValueError:
         return False
+        
+    if os.environ.get("ENABLE_IP_WHITELIST", "true").lower() == "true":
 
-    github_ips = get_github_actions_ips()
+        github_ips = get_github_actions_ips()
+            
+        for github_ip in github_ips:
+            if client_ip_addr in github_ip:
+                return True
 
-    for github_ip in github_ips:
-        if client_ip_addr in github_ip:
-            return True
-
-    return False
+        return False
+    
+    else:
+        return True
