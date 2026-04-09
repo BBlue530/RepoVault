@@ -27,9 +27,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set image tags
+        id: meta
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+            echo "[+] Current tags: ${VERSION}, latest"
+            echo "tags=${VERSION},latest" >> $GITHUB_OUTPUT
+          else
+            echo "[+] Current tag: latest"
+            echo "tags=latest" >> $GITHUB_OUTPUT
+          fi
+
       - name: Pull Lambda container image
         run: |
-          docker pull ghcr.io/bblue530/repovault_lambda:latest
+          TAGS="${{ steps.meta.outputs.tags }}"
+          FIRST_TAG=$(echo $TAGS | awk '{print $1}')
+
+          docker pull ghcr.io/bblue530/repovault_lambda:$FIRST_TAG
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -39,6 +54,8 @@ jobs:
 
       - name: Push image to ECR and Update Lambda
         run: |
+          TAGS="${{ steps.meta.outputs.tags }}"
+          
           aws ecr describe-repositories --repository-names repovault_lambda || \
             aws ecr create-repository --repository-name repovault_lambda
 
@@ -47,10 +64,14 @@ jobs:
             --password $(aws ecr get-login-password --region eu-north-1) \
             $ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com
 
-          docker tag ghcr.io/bblue530/repovault_lambda:latest \
-            $ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/repovault_lambda:latest
+          for TAG in $TAGS; do
+            echo "[+] Processing tag: $TAG"
 
-          docker push $ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/repovault_lambda:latest
+            docker tag ghcr.io/bblue530/repovault_lambda:$TAG \
+              $ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/repovault_lambda:$TAG
+
+            docker push $ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/repovault_lambda:$TAG
+          done
 
           aws lambda update-function-code \
             --function-name repovault_lambda \
