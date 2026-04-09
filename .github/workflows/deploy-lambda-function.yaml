@@ -42,9 +42,9 @@ jobs:
       - name: Pull Lambda container image
         run: |
           TAGS="${{ steps.meta.outputs.tags }}"
-          FIRST_TAG=$(echo $TAGS | awk '{print $1}')
+          PRIMARY_TAG=$(echo "$TAGS" | cut -d',' -f1)
 
-          docker pull ghcr.io/bblue530/repovault_lambda:$FIRST_TAG
+          docker pull ghcr.io/bblue530/repovault_lambda:$PRIMARY_TAG
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -55,7 +55,9 @@ jobs:
       - name: Push image to ECR and Update Lambda
         run: |
           TAGS="${{ steps.meta.outputs.tags }}"
-          
+          PRIMARY_TAG=$(echo "$TAGS" | cut -d',' -f1)
+          IFS=',' read -ra TAG_ARRAY <<< "$TAGS"
+
           aws ecr describe-repositories --repository-names repovault_lambda || \
             aws ecr create-repository --repository-name repovault_lambda
 
@@ -64,15 +66,17 @@ jobs:
             --password $(aws ecr get-login-password --region eu-north-1) \
             $ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com
 
-          for TAG in $TAGS; do
-            echo "[+] Processing tag: $TAG"
+          for TAG in "${TAG_ARRAY[@]}"; do
+            echo "[+] Tagging and pushing: $TAG"
 
-            docker tag ghcr.io/bblue530/repovault_lambda:$TAG \
+            docker tag \
+              ghcr.io/bblue530/repovault_lambda:$PRIMARY_TAG \
               $ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/repovault_lambda:$TAG
 
-            docker push $ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/repovault_lambda:$TAG
+            docker push \
+              $ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/repovault_lambda:$TAG
           done
 
           aws lambda update-function-code \
-            --function-name repovault_lambda \
-            --image-uri $ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/repovault_lambda:latest
+          --function-name repovault_lambda \
+          --image-uri $ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/repovault_lambda:$PRIMARY_TAG
